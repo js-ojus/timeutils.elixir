@@ -82,25 +82,34 @@ defmodule TimeUtils do
   """
 
   @doc "Answers the given number itself, treating it as the number of seconds."
-  def seconds(s), do: s
+  def seconds(s), do: {:seconds, s}
 
   @doc "Converts the given number of minutes to seconds, and answers it."
-  def minutes(m), do: m * 60
+  def minutes(m), do: {:seconds, m * 60}
 
   @doc "Converts the given number of hours to seconds, and answers it."
-  def hours(h), do: h * 3600
+  def hours(h), do: {:seconds, h * 3600}
 
   @doc "Converts the given number of days to seconds, and answers it."
-  def days(d), do: d * 86400
+  def days(d), do: {:seconds, d * 86400}
 
   @doc "Converts the given number of weeks to seconds, and answers it."
-  def weeks(w), do: w * 604800
+  def weeks(w), do: {:seconds, w * 604800}
 
   @doc "Answers a tuple with an atom ':months' and the given number of months."
   def months(m), do: {:months, m}
 
   @doc "Answers a tuple with an atom ':months' and the given number of years converted to months."
   def years(y), do: {:months, y * 12}
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  def before({:seconds, s}, whence) do
+    adjust {:seconds, s}, from: whence
+  end
 
   @doc """
     This is an end-point function.  The accumulated months are utilised
@@ -116,8 +125,8 @@ defmodule TimeUtils do
     to perform the actual calculation using the given reference date or
     date-time.
   """
-  def before(s, whence) do
-    adjust s, from: whence
+  def from({:seconds, s}, whence) do
+    adjust {:seconds, s}, from: whence, future: true
   end
 
   @doc """
@@ -127,15 +136,6 @@ defmodule TimeUtils do
   """
   def from({:months, m}, whence) do
     adjust {:months, m}, from: whence, future: true
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def from(s, whence) do
-    adjust s, from: whence, future: true
   end
 
   # Forward declaration.
@@ -151,6 +151,43 @@ defmodule TimeUtils do
     end
   end
   
+  # This is the internal work-horse function.  The end-point functions
+  # utilise this function for the actual calculation.  Apart from
+  # performing the requested calculation, this function handles leap
+  # years and month-specific number of days.
+  defp adjust({:seconds, s}, opts) do
+    w = case List.keyfind opts, :from, 0 do
+          {:from, whence} -> whence
+          _ -> :erlang.localtime
+        end
+    w = :erlang.localtime_to_universaltime w
+    utc = :erlang.universaltime_to_posixtime(w)
+    utc = case List.keyfind opts, :future, 0 do
+            {:future, _} -> utc + s
+            _ -> utc - s
+          end
+    upd = :erlang.posixtime_to_universaltime utc
+    :erlang.universaltime_to_localtime upd
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  def ago({:seconds, s}) do
+    adjust s
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  def from_now({:seconds, s}) do
+    adjust s, future: true
+  end
+
   # This is the internal work-horse function.  The end-point functions
   # utilise this function for the actual calculation.  Apart from
   # performing the requested calculation, this function handles leap
@@ -200,43 +237,6 @@ defmodule TimeUtils do
   """
   def from_now({:months, m}) do
     adjust {:months, m}, future: true
-  end
-
-  # This is the internal work-horse function.  The end-point functions
-  # utilise this function for the actual calculation.  Apart from
-  # performing the requested calculation, this function handles leap
-  # years and month-specific number of days.
-  defp adjust(s, opts) do
-    w = case List.keyfind opts, :from, 0 do
-          {:from, whence} -> whence
-          _ -> :erlang.localtime
-        end
-    w = :erlang.localtime_to_universaltime w
-    utc = :erlang.universaltime_to_posixtime(w)
-    utc = case List.keyfind opts, :future, 0 do
-            {:future, _} -> utc + s
-            _ -> utc - s
-          end
-    upd = :erlang.posixtime_to_universaltime utc
-    :erlang.universaltime_to_localtime upd
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def ago(s) do
-    adjust s
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def from_now(s) do
-    adjust s, future: true
   end
 
   @doc "Answers the current date-time."
