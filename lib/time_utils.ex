@@ -81,67 +81,38 @@ defmodule TimeUtils do
     `from_now`, `before` or `from`.
   """
 
+  @type nni :: non_neg_integer
+
   @doc "Answers the given number itself, treating it as the number of seconds."
+  @spec seconds(nni) :: {:seconds, nni}
   def seconds(s), do: {:seconds, s}
 
   @doc "Converts the given number of minutes to seconds, and answers it."
+  @spec minutes(nni) :: {:seconds, nni}
   def minutes(m), do: {:seconds, m * 60}
 
   @doc "Converts the given number of hours to seconds, and answers it."
+  @spec hours(nni) :: {:seconds, nni}
   def hours(h), do: {:seconds, h * 3600}
 
   @doc "Converts the given number of days to seconds, and answers it."
+  @spec days(nni) :: {:seconds, nni}
   def days(d), do: {:seconds, d * 86400}
 
   @doc "Converts the given number of weeks to seconds, and answers it."
+  @spec weeks(nni) :: {:seconds, nni}
   def weeks(w), do: {:seconds, w * 604800}
 
   @doc "Answers a tuple with an atom ':months' and the given number of months."
+  @spec months(nni) :: {:months, nni}
   def months(m), do: {:months, m}
 
   @doc "Answers a tuple with an atom ':months' and the given number of years converted to months."
+  @spec years(nni) :: {:months, nni}
   def years(y), do: {:months, y * 12}
 
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def before({:seconds, s}, whence) do
-    adjust {:seconds, s}, from: whence
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated months are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def before({:months, m}, whence) do
-    adjust {:months, m}, from: whence
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def from({:seconds, s}, whence) do
-    adjust {:seconds, s}, from: whence, future: true
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated months are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def from({:months, m}, whence) do
-    adjust {:months, m}, from: whence, future: true
-  end
-
-  # Forward declaration.
-  defp adjust(what, opts // [])
-
   @doc "Answers `true` if the given year is a leap year; `false` otherwise."
+  @spec is_leap_year?(nni) :: boolean
   def is_leap_year?(y) do
     cond do
       0 == rem(y, 400) -> true
@@ -155,6 +126,8 @@ defmodule TimeUtils do
   # utilise this function for the actual calculation.  Apart from
   # performing the requested calculation, this function handles leap
   # years and month-specific number of days.
+  @spec adjust({:seconds, nni}, list) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
   defp adjust({:seconds, s}, opts) do
     w = case List.keyfind opts, :from, 0 do
           {:from, whence} -> whence
@@ -170,28 +143,12 @@ defmodule TimeUtils do
     :erlang.universaltime_to_localtime upd
   end
 
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def ago({:seconds, s}) do
-    adjust s
-  end
-
-  @doc """
-    This is an end-point function.  The accumulated seconds are utilised
-    to perform the actual calculation using the given reference date or
-    date-time.
-  """
-  def from_now({:seconds, s}) do
-    adjust s, future: true
-  end
-
   # This is the internal work-horse function.  The end-point functions
   # utilise this function for the actual calculation.  Apart from
   # performing the requested calculation, this function handles leap
   # years and month-specific number of days.
+  @spec adjust({:months, nni}, list) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
   defp adjust({:months, m}, opts) do
     {{cy, cm, cd}, tm} = case List.keyfind opts, :from, 0 do
                            {:from, whence} -> case whence do
@@ -222,12 +179,25 @@ defmodule TimeUtils do
   end
 
   @doc """
-    This is an end-point function.  The accumulated months are utilised
+    This is an end-point function.  The accumulated seconds are utilised
     to perform the actual calculation using the given reference date or
     date-time.
   """
-  def ago({:months, m}) do
-    adjust {:months, m}
+  @spec ago({:seconds, nni}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def ago({:seconds, s}) do
+    adjust {:seconds, s}, []
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec from_now({:seconds, nni}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def from_now({:seconds, s}) do
+    adjust {:seconds, s}, future: true
   end
 
   @doc """
@@ -235,8 +205,65 @@ defmodule TimeUtils do
     to perform the actual calculation using the given reference date or
     date-time.
   """
+  @spec ago({:months, nni}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def ago({:months, m}) do
+    adjust {:months, m}, []
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated months are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec from_now({:months, nni}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
   def from_now({:months, m}) do
     adjust {:months, m}, future: true
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec before({:seconds, nni}, {{nni, nni, nni}, {nni, nni, nni}}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def before({:seconds, s}, whence) do
+    adjust {:seconds, s}, from: whence
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated months are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec before({:months, nni}, {{nni, nni, nni}, {nni, nni, nni}}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def before({:months, m}, whence) do
+    adjust {:months, m}, from: whence
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated seconds are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec from({:seconds, nni}, {{nni, nni, nni}, {nni, nni, nni}}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def from({:seconds, s}, whence) do
+    adjust {:seconds, s}, from: whence, future: true
+  end
+
+  @doc """
+    This is an end-point function.  The accumulated months are utilised
+    to perform the actual calculation using the given reference date or
+    date-time.
+  """
+  @spec from({:months, nni}, {{nni, nni, nni}, {nni, nni, nni}}) ::
+    {{nni, nni, nni}, {nni, nni, nni}}
+  def from({:months, m}, whence) do
+    adjust {:months, m}, from: whence, future: true
   end
 
   @doc "Answers the current date-time."
