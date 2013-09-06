@@ -117,8 +117,8 @@ defmodule TimeUtils do
     cond do
       0 == rem(y, 400) -> true
       0 == rem(y, 100) -> false
-      0 == rem(y, 4) -> true
-      true -> false
+      0 == rem(y, 4)   -> true
+      true             -> false
     end
   end
   
@@ -129,16 +129,10 @@ defmodule TimeUtils do
   @spec adjust({:seconds, nni}, list) ::
     {{nni, nni, nni}, {nni, nni, nni}}
   defp adjust({:seconds, s}, opts) do
-    w = case List.keyfind opts, :from, 0 do
-          {:from, whence} -> whence
-          _ -> :erlang.localtime
-        end
-    w = :erlang.localtime_to_universaltime w
+    w   = opts[:from] || :erlang.localtime
+    w   = :erlang.localtime_to_universaltime w
     utc = :erlang.universaltime_to_posixtime(w)
-    utc = case List.keyfind opts, :future, 0 do
-            {:future, _} -> utc + s
-            _ -> utc - s
-          end
+    utc = if opts[:future], do: utc + s, else: utc - s
     upd = :erlang.posixtime_to_universaltime utc
     :erlang.universaltime_to_localtime upd
   end
@@ -150,30 +144,24 @@ defmodule TimeUtils do
   @spec adjust({:months, nni}, list) ::
     {{nni, nni, nni}, {nni, nni, nni}}
   defp adjust({:months, m}, opts) do
-    {{cy, cm, cd}, tm} = case List.keyfind opts, :from, 0 do
-                           {:from, whence} -> case whence do
-                                                {d, t} -> {d, t}
-                                                d -> {d, :erlang.time}
-                                              end
-                           _ -> :erlang.localtime
+    {{cy, cm, cd}, tm} = case opts[:from] do
+                           nil    -> :erlang.localtime
+                           {d, t} -> {d, t}
+                           d      -> {d, :erlang.time}
                          end
     ccm = cy * 12 + cm
-    cim = case List.keyfind opts, :future, 0 do
-            {:future, _} -> ccm + m
-            _ -> ccm - m
-          end
-    iy = div cim, 12
-    im = rem cim, 12
+    cim = if opts[:future], do: ccm + m, else: ccm - m
+    iy  = div cim, 12
+    im  = rem cim, 12
     if im == 0 do
       iy = iy - 1
       im = 12
     end
     id = case cd do
-           t when t <= 28 -> t
-           t when (t >= 29 and im == 2) ->
-             if is_leap_year?(iy), do: 29, else: 28
-           t when t <= 30 -> t
-           t when t == 31 -> if im in [4, 6, 9, 11], do: 30, else: 31
+           t when t <= 28               -> t
+           t when (t >= 29 and im == 2) -> if is_leap_year?(iy), do: 29, else: 28
+           t when t <= 30               -> t
+           t when t == 31               -> if im in [4, 6, 9, 11], do: 30, else: 31
          end
     {{iy, im, id}, tm}
   end
